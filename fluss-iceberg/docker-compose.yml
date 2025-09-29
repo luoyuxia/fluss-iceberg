@@ -1,0 +1,162 @@
+
+x-common-environment: &common-environment
+  AWS_ACCESS_KEY_ID: admin
+  AWS_SECRET_ACCESS_KEY: password
+  AWS_REGION: us-east-1
+
+services:
+  #begin Fluss cluster
+  coordinator-server:
+    image: fluss/fluss:v0.8
+    volumes:
+      - ./lib:/tmp/lib
+    entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/fluss/plugins/iceberg/ && exec /docker-entrypoint.sh coordinatorServer"]
+    depends_on:
+      - zookeeper
+      - rest
+    networks:
+      iceberg_net:
+    environment:
+      - |
+        FLUSS_PROPERTIES=
+        zookeeper.address: zookeeper:2181
+        bind.listeners: FLUSS://coordinator-server:9123
+        remote.data.dir: /tmp/fluss/remote-data
+        datalake.format: iceberg
+        datalake.iceberg.type: rest
+        datalake.iceberg.warehouse: s3://warehouse/
+        datalake.iceberg.uri: http://rest:8181
+        datalake.iceberg.io-impl: org.apache.iceberg.aws.s3.S3FileIO
+        datalake.iceberg.s3.endpoint: http://minio:9000
+        datalake.iceberg.s3.path-style-access: true
+  tablet-server:
+    image: fluss/fluss:v0.8
+    command: tabletServer
+    depends_on:
+      - coordinator-server
+    networks:
+      iceberg_net:
+    environment:
+      - |
+        FLUSS_PROPERTIES=
+        zookeeper.address: zookeeper:2181
+        bind.listeners: FLUSS://tablet-server:9123
+        data.dir: /tmp/fluss/data
+        remote.data.dir: /tmp/fluss/remote-data
+        kv.snapshot.interval: 0s
+        datalake.format: iceberg
+        datalake.iceberg.type: rest
+        datalake.iceberg.warehouse: s3://warehouse/
+        datalake.iceberg.uri: http://localhost:8181
+        datalake.iceberg.io-impl: org.apache.iceberg.aws.s3.S3FileIO
+        datalake.iceberg.s3.endpoint: http://localhost:9000
+        datalake.iceberg.s3.path-style-access: true
+  zookeeper:
+    restart: always
+    image: zookeeper:3.9.2
+    networks:
+      iceberg_net:
+  #end
+  #begin Flink cluster
+  jobmanager:
+    image: fluss/quickstart-flink-iceberg:1.20-0.8.0
+    ports:
+      - "8083:8081"
+    command: jobmanager
+    networks:
+      iceberg_net:
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+  taskmanager:
+    image: fluss/quickstart-flink-iceberg:1.20-0.8.0
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    networks:
+      iceberg_net:
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 10
+        taskmanager.memory.process.size: 2048m
+        taskmanager.memory.framework.off-heap.size: 256m
+  #end
+
+  trino:
+    image: trinodb/trino
+    container_name: trino
+    networks:
+      iceberg_net:
+    depends_on:
+      - rest
+      - minio
+    volumes:
+      - ./trino/iceberg.properties:/etc/trino/catalog/iceberg.properties
+    environment:
+      <<: *common-environment
+
+  rest:
+    image: apache/iceberg-rest-fixture
+    container_name: iceberg-rest
+    networks:
+      iceberg_net:
+    ports:
+      - 8181:8181
+    environment:
+      <<: *common-environment
+      CATALOG_WAREHOUSE: s3://warehouse/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+      MINIO_DOMAIN: minio
+    networks:
+      iceberg_net:
+        aliases:
+          - warehouse.minio
+    volumes:
+      - minio_data:/data
+    ports:
+      - 9001:9001
+      - 9000:9000
+    command: ["server", "/data", "--console-address", ":9001"]
+
+  mc:
+    depends_on:
+      - minio
+    image: minio/mc
+    container_name: mc
+    networks:
+      iceberg_net:
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+    entrypoint: |
+      /bin/sh -c "
+      until (/usr/bin/mc alias set minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc rm -r --force minio/warehouse;
+      /usr/bin/mc mb minio/warehouse;
+      /usr/bin/mc policy set public minio/warehouse;
+      tail -f /dev/null
+      "
+
+networks:
+  iceberg_net:
+
+volumes:
+  minio_data:

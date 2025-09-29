@@ -1,0 +1,12 @@
+x-common-environment: &common-environment
+  AWS_ACCESS_KEY_ID: admin
+  AWS_SECRET_ACCESS_KEY: password
+  AWS_REGION: us-east-1
+
+services:
+  #begin Fluss cluster
+  coordinator-server:
+    image: fluss/fluss:v0.8
+    volumes:
+      - ./lib:/tmp/lib
+    command: ["sh", "-c", "echo 'Testing coordinatorServer:' && /docker-entrypoint.sh coordinatorServer"]
