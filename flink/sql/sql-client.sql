@@ -30,7 +30,7 @@ CREATE TEMPORARY TABLE source_customer (
   'number-of-rows' = '200',
   'fields.cust_key.expression' = '#{number.numberBetween ''0'',''20''}',
   'fields.name.expression' = '#{funnyName.name}',
-  'fields.nation_key.expression' = '#{number.numberBetween ''1'',''5''}',
+  'fields.nation_key.expression' = '#{number.numberBetween ''1'',''20''}',
   'fields.phone.expression' = '#{phoneNumber.cellPhone}',
   'fields.acctbal.expression' = '#{number.randomDouble ''3'',''1'',''1000''}',
   'fields.mktsegment.expression' = '#{regexify ''(AUTOMOBILE|BUILDING|FURNITURE|MACHINERY|HOUSEHOLD){1}''}'
@@ -43,8 +43,8 @@ CREATE TEMPORARY TABLE `source_nation` (
 ) WITH (
   'connector' = 'faker',
   'number-of-rows' = '100',
-  'fields.nation_key.expression' = '#{number.numberBetween ''1'',''5''}',
-  'fields.name.expression' = '#{regexify ''(CANADA|JORDAN|CHINA|UNITED|INDIA){1}''}'
+  'fields.nation_key.expression' = '#{number.numberBetween ''1'',''20''}',
+  'fields.name.expression' = '#{regexify ''(CANADA|JORDAN|CHINA|UNITED|INDIA|BRAZIL|GERMANY|FRANCE|JAPAN|AUSTRALIA|SOUTHAFRICA|ITALY|ARGENTINA|RUSSIA|SPAIN|MEXICO|KOREA|NETHERLANDS|SWEDEN|NORWAY){1}''}'
 );
 
 SET 'table.exec.sink.not-null-enforcer'='DROP';

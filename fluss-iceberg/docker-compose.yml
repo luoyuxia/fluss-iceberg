@@ -47,9 +47,9 @@ services:
         datalake.format: iceberg
         datalake.iceberg.type: rest
         datalake.iceberg.warehouse: s3://warehouse/
-        datalake.iceberg.uri: http://localhost:8181
+        datalake.iceberg.uri: http://rest:8181
         datalake.iceberg.io-impl: org.apache.iceberg.aws.s3.S3FileIO
-        datalake.iceberg.s3.endpoint: http://localhost:9000
+        datalake.iceberg.s3.endpoint: http://minio:9000
         datalake.iceberg.s3.path-style-access: true
   zookeeper:
     restart: always
