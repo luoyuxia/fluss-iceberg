@@ -18,20 +18,28 @@ This demo includes a complete data lakehouse stack:
 ├── flink/                    # Flink cluster with Iceberg support
 │   ├── Dockerfile           # Custom Flink image with Iceberg jars
 │   ├── lib/                 # Required JAR files
-│   ├── opt/                 # Additional Flink plugins, with fluss-flink-tiering.jar put
+│   ├── opt/                 # Additional Flink plugins, with fluss-flink-tiering.jar
 │   └── sql/                 # SQL scripts for data generation
 ├── fluss-iceberg/           # Main Docker Compose setup
 │   ├── docker-compose.yml   # Complete infrastructure stack
-│   ├── lib/                 # Iceberg jars for S3 required by Fluss to create tables backed on s3
+│   ├── lib/                 # Iceberg jars for S3 required by Fluss
 │   └── trino/               # Trino configuration
 └── README.md
 ```
 
-## Prerequisites
+## 🚀 Quick Start
 
-#### Build Custom Flink Image
+### Prerequisites
 
-The Flink image needs to be built with Iceberg dependencies and Fluss connectors. This custom image includes:
+- Docker and Docker Compose
+- At least 8GB RAM available for containers
+- Ports 8081, 8083, 8181, 9000, 9001 available
+
+### Build Required Images
+
+#### 1. Build Custom Flink Image
+
+The Flink image needs to be built with Iceberg dependencies and Fluss connectors:
 
 **Required Dependencies:**
 - `fluss-flink-1.19-0.8-SNAPSHOT.jar` - Fluss Flink connector
@@ -48,17 +56,11 @@ cd flink
 docker build -t fluss-flink-iceberg:1.20-0.8.0 .
 ```
 
-**What this image includes:**
-- Base Flink 1.20.0 with Scala 2.12 and Java 17
-- All Iceberg and AWS S3 dependencies
-- Fluss Flink connector for streaming database integration
-- Flink Faker connector for data generation
-- Pre-configured SQL client with demo scripts
-- Fluss tiering plugin jar to tier to iceberg
+#### 2. Build Fluss Image
 
-#### Build Fluss Image
-Since the Fluss image for `0.8.0` is not published, you will need to build Fluss `0.8.0` manually. Following the steps to build Fluss `0.8.0` image:
-```shell
+Since the Fluss image for `0.8.0` is not published, you need to build it manually:
+
+```bash
 # Clone Fluss
 git clone https://github.com/apache/fluss
 
@@ -67,77 +69,67 @@ cd fluss
 mvn clean install -DskipTests
 
 # Copy jars 
-rm -rf docker/build-target/ && mkdir docker/build-target/ && cp -r  build-target/* docker/build-target
+rm -rf docker/build-target/ && mkdir docker/build-target/ && cp -r build-target/* docker/build-target
 
 # Build Fluss image
 cd docker
 docker build -t fluss:fluss:0.8.0 .
 ```
 
-Note: This step can be skipped once Fluss 0.8.0 is published.
+> **Note:** This step can be skipped once Fluss 0.8.0 is published.
 
-## Running the Demo
+## 🎯 Running the Demo
 
-### Start required components
+### Step 1: Start the Infrastructure
 
-#### Start all containers
-To start all containers, run:
+Start all containers:
 ```bash
 cd fluss-iceberg
 docker-compose up -d
 ```
 
-This command automatically starts all the containers defined in the Docker Compose configuration in detached mode.
-Run
-```shell
-docker container ls -a
+Verify all containers are running:
+```bash
+docker-compose ps
 ```
-to check whether all containers are running properly.
 
-#### Access the services:
+**Access the services:**
 - **Flink Web UI**: http://localhost:8083
 - **MinIO Console**: http://localhost:9001 (admin/password)
-- **Iceberg REST API**: http://localhost:8181 
+- **Iceberg REST API**: http://localhost:8181
 
+### Step 2: Connect to Flink SQL Client
 
-### Enter into SQL-Client
-First, use the following command to enter the Flink SQL CLI Container:
-```shell
+Enter the Flink SQL CLI:
+```bash
 docker-compose exec jobmanager ./sql-client
 ```
 
-Note: To simplify this guide, three temporary tables have been pre-created with faker connector to generate data. You can view their schemas by running the following commands:
+**Pre-created Data Sources:**
+Three temporary tables are pre-created with faker connector for data generation:
 
-```shell
+```sql
+-- View table schemas
 SHOW CREATE TABLE source_customer;
-```
-
-```shell
 SHOW CREATE TABLE source_order;
-```
-
-```shell
 SHOW CREATE TABLE source_nation;
 ```
 
-### Create Fluss Tables
+### Step 3: Set Up Fluss Tables
 
-#### Create Fluss Catalog
-Use the following SQL to create a Fluss catalog:
+#### 3.1 Create Fluss Catalog
 ```sql
 CREATE CATALOG fluss_catalog WITH (
     'type' = 'fluss',
     'bootstrap.servers' = 'coordinator-server:9123'
 );
-```
 
-```sql
 USE CATALOG fluss_catalog;
 ```
 
-#### Create Tables
-Running the following SQL to create Fluss tables to be used in this guide:
+#### 3.2 Create Base Tables
 ```sql
+-- Orders table with processing time
 CREATE TABLE fluss_order (
     `order_key` BIGINT,
     `cust_key` INT NOT NULL,
@@ -147,9 +139,8 @@ CREATE TABLE fluss_order (
     `clerk` STRING,
     `ptime` AS PROCTIME()
 );
-```
 
-```sql
+-- Customer reference table
 CREATE TABLE fluss_customer (
     `cust_key` INT NOT NULL,
     `name` STRING,
@@ -159,17 +150,18 @@ CREATE TABLE fluss_customer (
     `mktsegment` STRING,
     PRIMARY KEY (`cust_key`) NOT ENFORCED
 );
-```
 
-```sql
+-- Nation reference table
 CREATE TABLE fluss_nation (
-  `nation_key` INT NOT NULL,
-  `name`       STRING,
-   PRIMARY KEY (`nation_key`) NOT ENFORCED
+    `nation_key` INT NOT NULL,
+    `name` STRING,
+    PRIMARY KEY (`nation_key`) NOT ENFORCED
 );
 ```
 
+#### 3.3 Create Data Lake Enabled Tables
 ```sql
+-- Enriched orders with data lake enabled
 CREATE TABLE enriched_orders (
     `order_key` BIGINT,
     `cust_key` INT NOT NULL,
@@ -186,22 +178,23 @@ CREATE TABLE enriched_orders (
     'table.datalake.enabled' = 'true',
     'table.datalake.freshness' = '30s'
 );
-```
 
-```sql
+-- Revenue aggregation with data lake enabled
 CREATE TABLE nation_revenue (
     `nation_name` STRING,
     `revenue` DECIMAL(15, 2),
-     PRIMARY KEY (`nation_name`) NOT ENFORCED
+    PRIMARY KEY (`nation_name`) NOT ENFORCED
 ) WITH (
     'table.datalake.enabled' = 'true',
     'table.datalake.freshness' = '30s'
 );
 ```
 
-### Streaming into Fluss
-1. Insert into Fluss tables from data gen source table
+### Step 4: Stream Data Processing
+
+#### 4.1 Load Data into Fluss Tables
 ```sql
+-- Load reference data and streaming orders
 EXECUTE STATEMENT SET
 BEGIN
     INSERT INTO fluss_nation SELECT * FROM `default_catalog`.`default_database`.source_nation;
@@ -210,9 +203,9 @@ BEGIN
 END;
 ```
 
-2. Enrich `fluss_order` table with `fluss_nation`, `fluss_customer` tables to `enriched_orders` table
+#### 4.2 Enrich Orders with Customer and Nation Data
 ```sql
--- insert tuples into enriched_orders
+-- Real-time enrichment with temporal joins
 INSERT INTO enriched_orders
 SELECT o.order_key,
        o.cust_key,
@@ -232,15 +225,16 @@ FROM fluss_order o
                  ON c.nation_key = n.nation_key;
 ```
 
-3. Average `enriched_orders` to calculate revenue by nation
+#### 4.3 Aggregate Revenue by Nation
 ```sql
+-- Real-time revenue aggregation
 INSERT INTO nation_revenue
-  SELECT nation_name, sum(total_price) as revenue
-  FROM enriched_orders
-  GROUP BY nation_name;
+SELECT nation_name, SUM(total_price) as revenue
+FROM enriched_orders
+GROUP BY nation_name;
 ```
 
-### Start Lakehouse Tiering Service
+### Step 5: Enable Data Lake Tiering
 
 Open a new terminal, navigate to the fluss-iceberg directory, and execute the following command within this directory to start the lake tiering service:
 ```sql
@@ -257,52 +251,53 @@ docker-compose exec jobmanager \
     --datalake.iceberg.s3.path-style-access true
 ```
 
-### Real-Time Analytics on Fluss datalake-enabled Tables
+### Step 6: Real-Time Analytics on Fluss datalake-enabled Tables
 
-#### Query on Iceberg via Trino
+#### 6.1 Query via Trino (Iceberg Only)
 
 Since Fluss with tiering data in Fluss into Iceberg, we can use Trino to query the iceberg tiered.
 
-##### Enter into Trino CLI
 Open a new terminal, navigate to the fluss-iceberg directory, and execute the following command within this directory to enter into trino cli:
 
 ```shell
 docker-compose exec trino trino
 ```
 
-##### Run queries via Trino
-Switch into fluss db:
+Query tiered data in Iceberg:
 ```sql
-use iceberg.fluss;
-```
+-- Switch to Fluss database
+USE iceberg.fluss;
 
-Run query on `nation_revenue` table to see the Top5 revenue by nation
-```sql
+-- Top 5 nations by revenue
 SELECT nation_name, revenue
 FROM nation_revenue
 ORDER BY revenue DESC
 LIMIT 5;
+
+-- Count records in enriched orders 
+SELECT COUNT(1) FROM enriched_orders;
 ```
 
-Run query on `enriched_orders` table to see how many rows already in the iceberg table
-```sql
-SELECT COUNT(1) FROM enriched_orders
-```
+#### 6.2 Query via Flink (Union of Fluss + Iceberg)
 
-#### Union Read Fluss and Iceberg via Flink
-Back to Flink SQL terminal to run queries to union read data in Fluss and Iceberg:
+Return to Flink SQL terminal and run union queries:
+
 ```sql
--- switch to batch mode
+-- Switch to batch mode for better performance
 SET 'execution.runtime-mode' = 'batch';
-```
-```sql
--- use tableau result mode
 SET 'sql-client.execution.result-mode' = 'tableau';
+
+-- Count all records (Fluss + Iceberg)
+SELECT COUNT(1) FROM enriched_orders;
 ```
 
-Run the SQL to see how many rows
-```sql
-SELECT COUNT(1) FROM enriched_orders
+> **Note:** Flink results will be higher than Trino because Flink unions data from both Fluss (hot data) and Iceberg (tiered data).
+
+## 🧹 Cleanup
+
+Stop all containers and remove volumes:
+```bash
+docker-compose down -v
 ```
 Run it multiple times, should be different every time.
 Go to Trino terminal to run same query. The result in Flink should be more than 
