@@ -73,7 +73,7 @@ rm -rf docker/build-target/ && mkdir docker/build-target/ && cp -r build-target/
 
 # Build Fluss image
 cd docker
-docker build -t fluss:fluss:0.8.0 .
+docker build -t fluss/fluss:0.8.0 .
 ```
 
 > **Note:** This step can be skipped once Fluss 0.8.0 is published.
@@ -85,12 +85,12 @@ docker build -t fluss:fluss:0.8.0 .
 Start all containers:
 ```bash
 cd fluss-iceberg
-docker-compose up -d
+docker compose up -d
 ```
 
 Verify all containers are running:
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 **Access the services:**
@@ -102,7 +102,7 @@ docker-compose ps
 
 Enter the Flink SQL CLI:
 ```bash
-docker-compose exec jobmanager ./sql-client
+docker compose exec jobmanager ./sql-client
 ```
 
 **Pre-created Data Sources:**
@@ -225,6 +225,8 @@ FROM fluss_order o
                  ON c.nation_key = n.nation_key;
 ```
 
+Go to [Flink Web UI](http://localhost:8083) to check every thing works well.
+
 #### 4.3 Aggregate Revenue by Nation
 ```sql
 -- Real-time revenue aggregation
@@ -234,11 +236,13 @@ FROM enriched_orders
 GROUP BY nation_name;
 ```
 
+Go to [Flink Web UI](http://localhost:8083) to check the Flink Job of aggregating revenue works well.
+
 ### Step 5: Enable Data Lake Tiering
 
-Open a new terminal, navigate to the fluss-iceberg directory, and execute the following command within this directory to start the lake tiering service:
+Open a new terminal, navigate to the `fluss-iceberg` directory, and execute the following command within this directory to start the lake tiering service:
 ```sql
-docker-compose exec jobmanager \
+docker compose exec jobmanager \
     /opt/flink/bin/flink run \
     /opt/flink/opt/fluss-flink-tiering-0.8-SNAPSHOT.jar \
     --fluss.bootstrap.servers coordinator-server:9123 \
@@ -250,6 +254,7 @@ docker-compose exec jobmanager \
     --datalake.iceberg.s3.endpoint http://minio:9000 \
     --datalake.iceberg.s3.path-style-access true
 ```
+You should see a Flink Job to tier data from Fluss to Paimon running in the [Flink Web UI](http://localhost:8083).
 
 ### Step 6: Real-Time Analytics on Fluss datalake-enabled Tables
 
@@ -260,7 +265,7 @@ Since Fluss with tiering data in Fluss into Iceberg, we can use Trino to query t
 Open a new terminal, navigate to the fluss-iceberg directory, and execute the following command within this directory to enter into trino cli:
 
 ```shell
-docker-compose exec trino trino
+docker compose exec trino trino
 ```
 
 Query tiered data in Iceberg:
@@ -290,24 +295,15 @@ SET 'sql-client.execution.result-mode' = 'tableau';
 -- Count all records (Fluss + Iceberg)
 SELECT COUNT(1) FROM enriched_orders;
 ```
+Run it multiple times, should be different every time.
 
 > **Note:** Flink results will be higher than Trino because Flink unions data from both Fluss (hot data) and Iceberg (tiered data).
 
 ## 🧹 Cleanup
 
-Stop all containers and remove volumes:
-```bash
-docker-compose down -v
-```
-Run it multiple times, should be different every time.
-Go to Trino terminal to run same query. The result in Flink should be more than 
-in Trino since Flink will union the datasets that already in Iceberg and still in Fluss.
-
-
-### Clean up
 After finishing the tutorial, run exit to exit Flink SQL CLI Container and then run
 ```shell
 docker compose down -v
 ```
-to stop all containers.
+to stop all containers and remove volumes.
 
