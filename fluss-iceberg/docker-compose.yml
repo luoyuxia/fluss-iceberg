@@ -7,7 +7,7 @@ x-common-environment: &common-environment
 services:
   #begin Fluss cluster
   coordinator-server:
-    image: fluss/fluss:v0.8
+    image: fluss/fluss:0.8.0
     volumes:
       - ./lib:/tmp/lib
     entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/fluss/plugins/iceberg/ && exec /docker-entrypoint.sh coordinatorServer"]
@@ -30,7 +30,7 @@ services:
         datalake.iceberg.s3.endpoint: http://minio:9000
         datalake.iceberg.s3.path-style-access: true
   tablet-server:
-    image: fluss/fluss:v0.8
+    image: fluss/fluss:0.8.0
     command: tabletServer
     depends_on:
       - coordinator-server
