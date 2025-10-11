@@ -250,27 +250,9 @@ GROUP BY nation_name;
 
 Go to [Flink Web UI](http://localhost:8083) to check the Flink Job of aggregating revenue works well.
 
-### Step 5: Enable Data Lake Tiering
+### Step 5: Real-Time Analytics on Fluss datalake-enabled Tables
 
-Open a new terminal, navigate to the `fluss-iceberg` directory, and execute the following command within this directory to start the lake tiering service:
-```sql
-docker compose exec jobmanager \
-    /opt/flink/bin/flink run \
-    /opt/flink/opt/fluss-flink-tiering-0.8-SNAPSHOT.jar \
-    --fluss.bootstrap.servers coordinator-server:9123 \
-    --datalake.format iceberg \
-    --datalake.iceberg.type rest \
-    --datalake.iceberg.warehouse s3://warehouse/ \
-    --datalake.iceberg.uri http://rest:8181 \
-    --datalake.iceberg.io-impl org.apache.iceberg.aws.s3.S3FileIO \
-    --datalake.iceberg.s3.endpoint http://minio:9000 \
-    --datalake.iceberg.s3.path-style-access true
-```
-You should see a Flink Job to tier data from Fluss to Paimon running in the [Flink Web UI](http://localhost:8083).
-
-### Step 6: Real-Time Analytics on Fluss datalake-enabled Tables
-
-#### 6.1 Query via Trino (Iceberg Only)
+#### 5.1 Query via Trino (Iceberg Only)
 
 Since Fluss with tiering data in Fluss into Iceberg, we can use Trino to query the iceberg tiered.
 
