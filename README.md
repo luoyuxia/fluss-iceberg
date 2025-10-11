@@ -85,6 +85,9 @@ docker build -t fluss/fluss:0.8.0 .
 Start all containers:
 ```bash
 cd fluss-iceberg
+```
+
+```bash
 docker compose up -d
 ```
 
@@ -111,7 +114,11 @@ Three temporary tables are pre-created with faker connector for data generation:
 ```sql
 -- View table schemas
 SHOW CREATE TABLE source_customer;
+```
+```sql
 SHOW CREATE TABLE source_order;
+```
+```sql
 SHOW CREATE TABLE source_nation;
 ```
 
@@ -123,7 +130,8 @@ CREATE CATALOG fluss_catalog WITH (
     'type' = 'fluss',
     'bootstrap.servers' = 'coordinator-server:9123'
 );
-
+```
+```sql
 USE CATALOG fluss_catalog;
 ```
 
@@ -139,7 +147,8 @@ CREATE TABLE fluss_order (
     `clerk` STRING,
     `ptime` AS PROCTIME()
 );
-
+```
+```sql
 -- Customer reference table
 CREATE TABLE fluss_customer (
     `cust_key` INT NOT NULL,
@@ -150,7 +159,8 @@ CREATE TABLE fluss_customer (
     `mktsegment` STRING,
     PRIMARY KEY (`cust_key`) NOT ENFORCED
 );
-
+```
+```sql
 -- Nation reference table
 CREATE TABLE fluss_nation (
     `nation_key` INT NOT NULL,
@@ -178,7 +188,9 @@ CREATE TABLE enriched_orders (
     'table.datalake.enabled' = 'true',
     'table.datalake.freshness' = '30s'
 );
+```
 
+```sql
 -- Revenue aggregation with data lake enabled
 CREATE TABLE nation_revenue (
     `nation_name` STRING,
@@ -272,13 +284,15 @@ Query tiered data in Iceberg:
 ```sql
 -- Switch to Fluss database
 USE iceberg.fluss;
-
+```
+```sql
 -- Top 5 nations by revenue
 SELECT nation_name, revenue
 FROM nation_revenue
 ORDER BY revenue DESC
 LIMIT 5;
-
+```
+```sql
 -- Count records in enriched orders 
 SELECT COUNT(1) FROM enriched_orders;
 ```
@@ -291,7 +305,8 @@ Return to Flink SQL terminal and run union queries:
 -- Switch to batch mode for better performance
 SET 'execution.runtime-mode' = 'batch';
 SET 'sql-client.execution.result-mode' = 'tableau';
-
+```
+```sql
 -- Count all records (Fluss + Iceberg)
 SELECT COUNT(1) FROM enriched_orders;
 ```
