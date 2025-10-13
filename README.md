@@ -97,7 +97,7 @@ docker compose ps
 ```
 
 **Access the services:**
-- **Flink Web UI**: http://localhost:8083
+- **Flink Web UI**: http://localhost:8083, with Lake Tiering Service Job Running
 - **MinIO Console**: http://localhost:9001 (admin/password)
 - **Iceberg REST API**: http://localhost:8181
 
@@ -184,7 +184,7 @@ CREATE TABLE enriched_orders (
     `cust_acctbal` DECIMAL(15, 2),
     `cust_mktsegment` STRING,
     `nation_name` STRING,
-    `ts` TIMESTAMP_LTZ(3)
+    `ingest_ts` TIMESTAMP_LTZ
 ) WITH (
     'table.datalake.enabled' = 'true',
     'table.datalake.freshness' = '30s'
@@ -231,7 +231,7 @@ SELECT o.order_key,
        c.acctbal,
        c.mktsegment,
        n.name,
-       CURRENT_TIMESTAMP,
+       CURRENT_TIMESTAMP as ingest_ts
 FROM fluss_order o
        LEFT JOIN fluss_customer FOR SYSTEM_TIME AS OF `o`.`ptime` AS `c`
                  ON o.cust_key = c.cust_key
@@ -288,12 +288,12 @@ SELECT COUNT(1) FROM enriched_orders;
 ```
 
 ```sql
--- Query the latest timestamp in enriched orders 
-SELECT MAX(ts) FROM enriched_orders;
+-- Query the latest ingest timestamp in enriched orders 
+SELECT MAX(ingest_ts) FROM enriched_orders;
 ```
 
 
-#### 6.2 Query via Flink (Union of Fluss + Iceberg)
+#### 5.2 Query via Flink (Union of Fluss + Iceberg)
 
 Return to Flink SQL terminal and run union queries:
 
@@ -310,7 +310,7 @@ Run it multiple times, should be different every time.
 
 ```sql
 -- Query the latest timestamp in enriched orders 
-SELECT MAX(ts) FROM enriched_orders;
+SELECT MAX(ingest_ts) FROM enriched_orders;
 ```
 
 > **Note:** Flink results will be higher than Trino because Flink unions data from both Fluss (hot data) and Iceberg (tiered data).
