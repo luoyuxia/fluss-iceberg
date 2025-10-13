@@ -93,7 +93,7 @@ services:
 
   # Flink Lake Tiering Service
   flink-tiering:
-    image: fluss-flink-iceberg:1.20-0.8.0
+    image: fluss/quickstart-flink-iceberg:1.20-0.8.0
     depends_on:
       - jobmanager
       - coordinator-server

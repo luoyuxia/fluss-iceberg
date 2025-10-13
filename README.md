@@ -53,7 +53,7 @@ The Flink image needs to be built with Iceberg dependencies and Fluss connectors
 **Build the Flink image:**
 ```bash
 cd flink
-docker build -t fluss-flink-iceberg:1.20-0.8.0 .
+docker build -t fluss/quickstart-flink-iceberg:1.20-0.8.0 .
 ```
 
 #### 2. Build Fluss Image
@@ -183,7 +183,8 @@ CREATE TABLE enriched_orders (
     `cust_phone` STRING,
     `cust_acctbal` DECIMAL(15, 2),
     `cust_mktsegment` STRING,
-    `nation_name` STRING
+    `nation_name` STRING,
+    `ts` TIMESTAMP_LTZ(3)
 ) WITH (
     'table.datalake.enabled' = 'true',
     'table.datalake.freshness' = '30s'
@@ -229,7 +230,8 @@ SELECT o.order_key,
        c.phone,
        c.acctbal,
        c.mktsegment,
-       n.name
+       n.name,
+       CURRENT_TIMESTAMP,
 FROM fluss_order o
        LEFT JOIN fluss_customer FOR SYSTEM_TIME AS OF `o`.`ptime` AS `c`
                  ON o.cust_key = c.cust_key
@@ -267,6 +269,12 @@ Query tiered data in Iceberg:
 -- Switch to Fluss database
 USE iceberg.fluss;
 ```
+
+```sql
+-- Query the snapshots of the iceberg tables
+SELECT * FROM "nation_revenue$snapshots";
+```
+
 ```sql
 -- Top 5 nations by revenue
 SELECT nation_name, revenue
@@ -278,6 +286,12 @@ LIMIT 5;
 -- Count records in enriched orders 
 SELECT COUNT(1) FROM enriched_orders;
 ```
+
+```sql
+-- Query the latest timestamp in enriched orders 
+SELECT MAX(ts) FROM enriched_orders;
+```
+
 
 #### 6.2 Query via Flink (Union of Fluss + Iceberg)
 
@@ -293,6 +307,11 @@ SET 'sql-client.execution.result-mode' = 'tableau';
 SELECT COUNT(1) FROM enriched_orders;
 ```
 Run it multiple times, should be different every time.
+
+```sql
+-- Query the latest timestamp in enriched orders 
+SELECT MAX(ts) FROM enriched_orders;
+```
 
 > **Note:** Flink results will be higher than Trino because Flink unions data from both Fluss (hot data) and Iceberg (tiered data).
 
