@@ -69,10 +69,10 @@ cd fluss
 mvn clean install -DskipTests
 
 # Copy jars 
-rm -rf docker/build-target/ && mkdir docker/build-target/ && cp -r build-target/* docker/build-target
+rm -rf docker/fluss/build-target/  && mkdir docker/fluss/build-target/ && cp -r build-target/* docker/fluss/build-target
 
 # Build Fluss image
-cd docker
+cd docker/fluss
 docker build -t fluss/fluss:0.8.0 .
 ```
 
