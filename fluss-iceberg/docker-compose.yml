@@ -1,4 +1,3 @@
-
 x-common-environment: &common-environment
   AWS_ACCESS_KEY_ID: admin
   AWS_SECRET_ACCESS_KEY: password
@@ -7,10 +6,16 @@ x-common-environment: &common-environment
 services:
   #begin Fluss cluster
   coordinator-server:
-    image: fluss/fluss:0.8.0
+    image: apache/fluss:0.8.0-incubating
+    container_name: coordinator-server
     volumes:
       - ./lib:/tmp/lib
-    entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/fluss/plugins/iceberg/ && exec /docker-entrypoint.sh coordinatorServer"]
+    entrypoint:
+      [
+        "sh",
+        "-c",
+        "cp -v /tmp/lib/*.jar /opt/fluss/plugins/iceberg/ && exec /docker-entrypoint.sh coordinatorServer",
+      ]
     depends_on:
       - zookeeper
       - rest
@@ -30,7 +35,8 @@ services:
         datalake.iceberg.s3.endpoint: http://minio:9000
         datalake.iceberg.s3.path-style-access: true
   tablet-server:
-    image: fluss/fluss:0.8.0
+    image: apache/fluss:0.8.0-incubating
+    container_name: tablet-server
     command: tabletServer
     depends_on:
       - coordinator-server
@@ -60,6 +66,7 @@ services:
   #begin Flink cluster
   jobmanager:
     image: fluss/quickstart-flink-iceberg:1.20-0.8.0
+    container_name: jobmanager
     ports:
       - "8083:8081"
     command: jobmanager
@@ -74,6 +81,7 @@ services:
         jobmanager.rpc.address: jobmanager
   taskmanager:
     image: fluss/quickstart-flink-iceberg:1.20-0.8.0
+    container_name: taskmanager
     depends_on:
       - jobmanager
     command: taskmanager
@@ -90,7 +98,6 @@ services:
         taskmanager.memory.process.size: 2048m
         taskmanager.memory.framework.off-heap.size: 256m
   #end
-
   # Flink Lake Tiering Service
   flink-tiering:
     image: fluss/quickstart-flink-iceberg:1.20-0.8.0
